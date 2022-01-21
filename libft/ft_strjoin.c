@@ -1,24 +1,41 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   pipex.h                                            :+:      :+:    :+:   */
+/*   ft_strjoin.c                                       :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: apommier <apommier@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2022/01/19 12:45:13 by apommier          #+#    #+#             */
-/*   Updated: 2022/01/21 03:00:34 by apommier         ###   ########.fr       */
+/*   Created: 2022/01/20 21:44:01 by apommier          #+#    #+#             */
+/*   Updated: 2022/01/20 21:57:45 by apommier         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include "./libft/libft.h"
+#include "libft.h"
 
-char	**get_path(char **envp);
-char	*get_command(char *exec, char **envp);
-void	pipex(char **envp, char **argv);
-void	child_process(char **envp, char **argv, int *pipe_tab);
-void	parent_process(char **envp, char **argv, int *pipe_tab);
+char	*ft_strjoin(char *save, char *s2)
+{
+	char	*dest;
+	int		i;
+	int		j;
+
+	i = 0;
+	j = 0;
+	if (!save && !s2)
+		return (0);
+	dest = malloc(ft_strlen(save) + ft_strlen(s2) + 1);
+	while (save && save[i])
+	{
+		dest[j] = save[i];
+		j++;
+		i++;
+	}
+	i = 0;
+	while (s2 && s2[i])
+	{
+		dest[j] = s2[i];
+		j++;
+		i++;
+	}
+	dest[j] = 0;
+	return (dest);
+}

@@ -10,7 +10,7 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "../Utils/push_swap.h"
+#include "../pipex.h"
 
 char	*ft_free(char *save, int *end)
 {

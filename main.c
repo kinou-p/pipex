@@ -6,7 +6,7 @@
 /*   By: apommier <apommier@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/01/19 12:45:03 by apommier          #+#    #+#             */
-/*   Updated: 2022/01/21 01:16:22 by apommier         ###   ########.fr       */
+/*   Updated: 2022/01/21 03:56:28 by apommier         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -47,101 +47,90 @@ char	*get_command(char *exec, char **envp)
 
 	i = 0;
 	swap = 0;
-	cmd = ft_strjoin("/", exec);
+	cmd = 0;
 	path = get_path(envp);
-	swap = ft_strjoin(path[i], cmd);
-	while (access(swap, F_OK) == -1 && path[i++])
+	swap = ft_strjoin(path[i], "/");
+	while (access(swap, F_OK) && path[i++])
 	{
 		if (swap)
 			free(swap);
-		swap = ft_strjoin(path[i], cmd);
+		swap = ft_strjoin(path[i], "/");
+		cmd = swap;
+		swap = ft_strjoin(swap, exec);
+		free(cmd);
 	}
-	printf("cmd = %s path = %s\n", cmd, swap);
-	free(cmd);
+	if (!path[i])
+		return (0);
 	return (swap);
 }
 
-void pipex(int fd1, int fd2, char **envp, char **argv)
+void	child_process(char **envp, char **argv, int *end)
 {
-	int		pipe_tab[2];
+	int		fd1;
+	char	**exec;
+	char 	*cmd1; 
+	
+	fd1 = open(argv[1], O_RDONLY);
+	exec = ft_split(argv[2], ' ');
+	cmd1 = get_command(exec[0], envp);
+	if (dup2(end[1], 1) == -1)
+	{
+		perror("Error");
+		exit(1);
+	}
+	if (dup2(fd1, 0) == -1)
+	{
+		perror("Error");
+		exit(1);
+	}
+	close(end[0]);
+	close(fd1);
+	if (execve(cmd1, exec, envp) == -1)
+		perror("Error");
+	free(cmd1);
+}
+
+
+void	parent_process(char **env, char **argv, int *end)
+{
+	char	**exec;
+	char 	*cmd2;
+	int		status;
+	int 	fd2;
+
+
+	waitpid(-1, &status, 0);	
+	exec = ft_split(argv[3], ' ');
+	fd2 = open(argv[4], O_RDWR | O_CREAT | O_TRUNC, 0666);
+	cmd2 = get_command(exec[0], env);	
+	if (dup2(end[0], 0) == -1)
+		exit(1);
+	if (dup2(fd2, 1) == -1)
+		exit(1);
+	close(end[1]);
+	close(fd2);
+	if (execve(cmd2, exec, env) == -1)
+		perror("Error");
+}
+
+int main(int argc, char **argv, char **envp)
+{
+	int		end[2];
+	char *cmd1;
+	char *cmd2;
 	pid_t	parent;
 
+	pipe(end);
 	parent = fork();
 	if (parent < 0)
 	{
 		printf("here\n");
 		perror("Error");
-		return ;
+		return (0);
 	}
 	if (!parent)
-		child_process(fd1, envp, argv, pipe_tab);
+		child_process(envp, argv, end);
 	else
-		parent_process(fd2, envp, argv, pipe_tab);
-	printf("pipex end\n");
-}
-
-void	child_process(int fd1, char **envp, char **argv, int *pipe_tab)
-{
-	int		i;
-	char	*cmd1; 
-
-	cmd1 = 0;
-	i = 0;
-	if (dup2(fd1, 0) == -1)
-	{
-		perror("Error");
-		return ;
-	}
-	if (dup2(pipe_tab[1], 1) == -1)
-	{
-		perror("Error");
-		return ;
-	}
-	close(pipe_tab[0]);
-	close(fd1);
-	cmd1 = get_command(argv[2], envp);
-	if (cmd1)
-	{
-		execve(cmd1, argv, envp);
-		free(cmd1);
-	}
-}
-
-void	parent_process(int fd2, char **envp, char **argv, int *pipe_tab)
-{
-	int		i;
-	int		status;
-	char	*cmd2; 
-
-	waitpid(-1, &status, 0);
-	cmd2 = 0;
-	i = 0;
-	if (!dup2(fd2, 1))
-		return ;
-	if (!dup2(pipe_tab[0], 0))
-		return ;
-	close(pipe_tab[1]);
-	close(fd2);
-	cmd2 = get_command(argv[3], envp);
-	if (cmd2)
-	{
-		execve(cmd2, argv, envp);
-		free(cmd2);
-	}
-}
-int main(int argc, char **argv, char **envp)
-{
-	int		fd1;
-	int 	fd2;
-	char	*path;
-
-	//if (check_error)
-	//	return (0);
-	fd1 = open(argv[1], O_RDONLY);
-	fd2 = open(argv[4], O_RDWR | O_CREAT | O_TRUNC, 0644);
-	if (!fd1 || !fd2)
-		return (0);
-	pipex(fd1, fd2 , envp, argv);
-	printf("--end--\n");
-	return (1);
+		parent_process(envp, argv, end);
+	return (0);
 }

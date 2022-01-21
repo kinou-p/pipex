@@ -6,11 +6,11 @@
 /*   By: apommier <apommier@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2020/12/14 06:05:54 by apommier          #+#    #+#             */
-/*   Updated: 2022/01/17 21:42:00 by apommier         ###   ########.fr       */
+/*   Updated: 2022/01/20 21:58:39 by apommier         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "../Utils/push_swap.h"
+#include "../pipex.h"
 
 char	*ft_strjoin(char *save, char *s2)
 {
