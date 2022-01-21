@@ -6,14 +6,13 @@
 /*   By: apommier <apommier@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/01/19 12:45:03 by apommier          #+#    #+#             */
-/*   Updated: 2022/01/21 03:56:28 by apommier         ###   ########.fr       */
+/*   Updated: 2022/01/21 08:02:42 by apommier         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "pipex.h"
-#include <stdio.h>
 
-char **get_path(char **envp)
+char	**get_path(char **env)
 {
 	int		i;
 	int		j;
@@ -24,12 +23,16 @@ char **get_path(char **envp)
 	j = 0;
 	line = 0;
 	swap = 0;
-	while (envp[i++] && envp[i])
+	while (env[i++] && env[i])
 	{
-		if (!ft_strncmp(envp[i], "PATH=", 5))
+		if (!ft_strncmp(env[i], "PATH=", 5))
 		{
-			swap = ft_substr(envp[i], 5, ft_strlen(envp[i]));
+			swap = ft_substr(env[i], 5, ft_strlen(env[i]));
+			if (!swap)
+				exit(1);
 			line = ft_split(swap, ':');
+			if (!line)
+				exit(1);
 			free(swap);
 			return (line);
 		}
@@ -38,99 +41,105 @@ char **get_path(char **envp)
 	return (0);
 }
 
-char	*get_command(char *exec, char **envp)
+char	*get_command(char **exec, char **env)
 {
 	char	**path;
 	char	*cmd;
-	char 	*swap;
+	char	*swap;
 	int		i;
 
 	i = 0;
-	swap = 0;
 	cmd = 0;
-	path = get_path(envp);
-	swap = ft_strjoin(path[i], "/");
+	swap = 0;
+	path = get_path(env);
+	if (exec[0][0] != '/')
+		swap = ft_strjoin(path[i], "/");
+	else
+		swap = ft_strdup(path[i]);
 	while (access(swap, F_OK) && path[i++])
 	{
-		if (swap)
-			free(swap);
+		free(swap);
 		swap = ft_strjoin(path[i], "/");
 		cmd = swap;
-		swap = ft_strjoin(swap, exec);
+		swap = ft_strjoin(swap, exec[0]);
 		free(cmd);
 	}
-	if (!path[i])
-		return (0);
+	exit_command(path, exec, swap, i);
 	return (swap);
 }
 
-void	child_process(char **envp, char **argv, int *end)
+void	child_process(int fd1, char **env, char **argv, int *end)
 {
-	int		fd1;
 	char	**exec;
-	char 	*cmd1; 
-	
-	fd1 = open(argv[1], O_RDONLY);
-	exec = ft_split(argv[2], ' ');
-	cmd1 = get_command(exec[0], envp);
+	char	*cmd;
+	int		i;
+
+	i = 0;
 	if (dup2(end[1], 1) == -1)
-	{
-		perror("Error");
-		exit(1);
-	}
+		error("dup2 fail");
 	if (dup2(fd1, 0) == -1)
-	{
-		perror("Error");
-		exit(1);
-	}
+		error("dup2 fail");
 	close(end[0]);
 	close(fd1);
-	if (execve(cmd1, exec, envp) == -1)
-		perror("Error");
-	free(cmd1);
+	exec = ft_split(argv[2], ' ');
+	cmd = get_command(exec, env);
+	if (execve(cmd, exec, env) == -1)
+	{
+		free_double(exec);
+		free(cmd);
+		error("Execve went wrong");
+	}
+	free_double(exec);
+	free(cmd);
 }
 
-
-void	parent_process(char **env, char **argv, int *end)
+void	parent_process(int fd2, char **env, char **argv, int *end)
 {
 	char	**exec;
-	char 	*cmd2;
+	char	*cmd2;
 	int		status;
-	int 	fd2;
 
-
-	waitpid(-1, &status, 0);	
-	exec = ft_split(argv[3], ' ');
-	fd2 = open(argv[4], O_RDWR | O_CREAT | O_TRUNC, 0666);
-	cmd2 = get_command(exec[0], env);	
+	waitpid(-1, &status, 0);
 	if (dup2(end[0], 0) == -1)
-		exit(1);
+		error("dup2 fail");
 	if (dup2(fd2, 1) == -1)
-		exit(1);
+		error("dup2 fail");
 	close(end[1]);
 	close(fd2);
+	exec = ft_split(argv[3], ' ');
+	cmd2 = get_command(exec, env);
 	if (execve(cmd2, exec, env) == -1)
-		perror("Error");
+	{	
+		free_double(exec);
+		free(cmd2);
+		error("Execve went wrong");
+	}
+	free_double(exec);
+	free(cmd2);
 }
 
-int main(int argc, char **argv, char **envp)
+int	main(int argc, char **argv, char **env)
 {
 	int		end[2];
-	char *cmd1;
-	char *cmd2;
 	pid_t	parent;
+	int		fd1;
+	int		fd2;
 
+	if (argc != 5)
+		error("Bad number of argument");
+	fd1 = open(argv[1], O_RDONLY);
+	fd2 = open(argv[4], O_RDWR | O_CREAT | O_TRUNC, 0666);
+	if (fd2 == -1 || fd1 == -1)
+	{
+		error("Bad file descriptor");
+	}
 	pipe(end);
 	parent = fork();
 	if (parent < 0)
-	{
-		printf("here\n");
-		perror("Error");
-		return (0);
-	}
+		error("Fork Error");
 	if (!parent)
-		child_process(envp, argv, end);
+		child_process(fd1, env, argv, end);
 	else
-		parent_process(envp, argv, end);
-	return (0);
+		parent_process(fd2, env, argv, end);
+	exit(1);
 }

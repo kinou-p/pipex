@@ -6,7 +6,7 @@
 /*   By: apommier <apommier@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2020/12/07 00:54:12 by apommier          #+#    #+#             */
-/*   Updated: 2022/01/17 11:34:08 by apommier         ###   ########.fr       */
+/*   Updated: 2022/01/21 08:09:38 by apommier         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -71,7 +71,7 @@ char	**ft_split(char const *s, char c)
 		while (s[i] == c && s[i])
 			i++;
 	}
-	dest = (char **)malloc(sizeof(char *) * (i + j));
+	dest = (char **)calloc(sizeof(char *), (i + j));
 	if (!dest)
 		return (0);
 	dest[j] = 0;
