@@ -6,11 +6,12 @@
 /*   By: apommier <apommier@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/01/19 12:45:03 by apommier          #+#    #+#             */
-/*   Updated: 2022/01/20 20:26:59 by apommier         ###   ########.fr       */
+/*   Updated: 2022/01/21 01:16:22 by apommier         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "pipex.h"
+#include <stdio.h>
 
 char **get_path(char **envp)
 {
@@ -25,9 +26,9 @@ char **get_path(char **envp)
 	swap = 0;
 	while (envp[i++] && envp[i])
 	{
-		if (!ft_strncmp(envp[i], "PATH", 4))
+		if (!ft_strncmp(envp[i], "PATH=", 5))
 		{
-			swap = ft_substr(envp[i], -1, 4);
+			swap = ft_substr(envp[i], 5, ft_strlen(envp[i]));
 			line = ft_split(swap, ':');
 			free(swap);
 			return (line);
@@ -41,84 +42,106 @@ char	*get_command(char *exec, char **envp)
 {
 	char	**path;
 	char	*cmd;
-	char 	*del;
+	char 	*swap;
 	int		i;
 
 	i = 0;
-	cmd = exec;
+	swap = 0;
+	cmd = ft_strjoin("/", exec);
 	path = get_path(envp);
-	while (access(cmd, F_OK) && path[i++])
+	swap = ft_strjoin(path[i], cmd);
+	while (access(swap, F_OK) == -1 && path[i++])
 	{
-		del = cmd;
-		cmd = ft_strjoin("/", cmd);
-		free(del);
-		del = cmd;
-		cmd = ft_strjoin(path[i], cmd);
-		free(del);
+		if (swap)
+			free(swap);
+		swap = ft_strjoin(path[i], cmd);
 	}
-	return (cmd);
+	printf("cmd = %s path = %s\n", cmd, swap);
+	free(cmd);
+	return (swap);
 }
 
-void pipex(char *cmd1, char *cmd2, int fd1, int fd2, char **envp)
+void pipex(int fd1, int fd2, char **envp, char **argv)
 {
-	int		*pipe;
+	int		pipe_tab[2];
 	pid_t	parent;
 
-	pipe = ft_calloc(sizeof(int), 2);
-	if (pipe(pipe) == -1)
-		return ;
 	parent = fork();
 	if (parent < 0)
 	{
-		free(pipe);
+		printf("here\n");
+		perror("Error");
 		return ;
 	}
 	if (!parent)
-		child(cmd1, fd1, path);
+		child_process(fd1, envp, argv, pipe_tab);
 	else
-		parent(cmd2, fd2, path);
-	else 
-	free(pipe);
+		parent_process(fd2, envp, argv, pipe_tab);
+	printf("pipex end\n");
 }
 
-void	child(int fd1, char **envp, char **argv)
+void	child_process(int fd1, char **envp, char **argv, int *pipe_tab)
 {
 	int		i;
 	char	*cmd1; 
 
 	cmd1 = 0;
 	i = 0;
-	if (!dup2(fd1, STDIN_FILENO))
+	if (dup2(fd1, 0) == -1)
+	{
+		perror("Error");
 		return ;
-	if (!dup2(pipe[1], STDIN_FILENO))
+	}
+	if (dup2(pipe_tab[1], 1) == -1)
+	{
+		perror("Error");
 		return ;
-	close(end[0]);
+	}
+	close(pipe_tab[0]);
 	close(fd1);
-	cmd1 = get_command(argc[0], envp);
+	cmd1 = get_command(argv[2], envp);
 	if (cmd1)
-		execve(cmd1, argv, envp)
-	free(cmd1);
+	{
+		execve(cmd1, argv, envp);
+		free(cmd1);
+	}
 }
 
-void	parent(int fd2, char **envp, char **argv)
+void	parent_process(int fd2, char **envp, char **argv, int *pipe_tab)
 {
-	char	*cmd2;
+	int		i;
+	int		status;
+	char	*cmd2; 
 
-	return ;
+	waitpid(-1, &status, 0);
+	cmd2 = 0;
+	i = 0;
+	if (!dup2(fd2, 1))
+		return ;
+	if (!dup2(pipe_tab[0], 0))
+		return ;
+	close(pipe_tab[1]);
+	close(fd2);
+	cmd2 = get_command(argv[3], envp);
+	if (cmd2)
+	{
+		execve(cmd2, argv, envp);
+		free(cmd2);
+	}
 }
-
 int main(int argc, char **argv, char **envp)
 {
 	int		fd1;
 	int 	fd2;
 	char	*path;
 
-	if (check_error)
-		return (0);
+	//if (check_error)
+	//	return (0);
 	fd1 = open(argv[1], O_RDONLY);
 	fd2 = open(argv[4], O_RDWR | O_CREAT | O_TRUNC, 0644);
 	if (!fd1 || !fd2)
 		return (0);
-	pipex(argv[1], argv[4], fd1, fd2);
+	pipex(fd1, fd2 , envp, argv);
+	printf("--end--\n");
 	return (1);
 }
